@@ -12,6 +12,8 @@ def _headers(key):
 
 
 @pytest.mark.api
+@pytest.mark.integration
+@pytest.mark.regression
 @pytest.mark.smoke
 def test_categories_endpoint_returns_list(supabase_url, supabase_key):
     r = requests.get(
@@ -25,6 +27,8 @@ def test_categories_endpoint_returns_list(supabase_url, supabase_key):
 
 
 @pytest.mark.api
+@pytest.mark.integration
+@pytest.mark.regression
 @pytest.mark.smoke
 def test_brochures_endpoint_returns_list(supabase_url, supabase_key):
     r = requests.get(
@@ -38,6 +42,8 @@ def test_brochures_endpoint_returns_list(supabase_url, supabase_key):
 
 
 @pytest.mark.api
+@pytest.mark.integration
+@pytest.mark.regression
 def test_brochure_shape_includes_expected_columns(supabase_url, supabase_key):
     r = requests.get(
         f"{supabase_url}/rest/v1/brochures?select=*&limit=1",
@@ -54,6 +60,8 @@ def test_brochure_shape_includes_expected_columns(supabase_url, supabase_key):
 
 
 @pytest.mark.api
+@pytest.mark.integration
+@pytest.mark.regression
 def test_anon_cannot_insert_brochure(supabase_url, supabase_key):
     """RLS: an anonymous request must NOT be able to insert."""
     r = requests.post(
@@ -67,6 +75,8 @@ def test_anon_cannot_insert_brochure(supabase_url, supabase_key):
 
 
 @pytest.mark.api
+@pytest.mark.integration
+@pytest.mark.regression
 def test_phone_and_hours_columns_exist(supabase_url, supabase_key):
     """Verify the recent migration added phone_number and business_hours."""
     r = requests.get(

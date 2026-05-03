@@ -8,3 +8,5 @@ test-results/
 .venv/
 venv/
 node_modules/
+.idea/
+.vscode/

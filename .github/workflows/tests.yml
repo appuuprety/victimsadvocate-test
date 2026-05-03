@@ -1,0 +1,134 @@
+name: Tests
+
+on:
+  # Smoke tests on every push / PR
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Scheduled runs (UTC)
+  #   - integration: every day at 06:00 UTC
+  #   - regression : every Sunday at 07:00 UTC
+  schedule:
+    - cron: "0 6 * * *"   # daily integration
+    - cron: "0 7 * * 0"   # weekly regression
+  # Manual trigger — pick the suite from the Actions tab
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Which suite to run"
+        required: true
+        default: smoke
+        type: choice
+        options: [smoke, integration, regression, api]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      # ── Pick which marker(s) to run based on the trigger ────────────
+      - name: Determine test suite
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SUITE="${{ inputs.suite }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "0 7 * * 0" ]; then
+              SUITE="regression"
+            else
+              SUITE="integration"
+            fi
+          else
+            SUITE="smoke"
+          fi
+          echo "suite=$SUITE" >> "$GITHUB_OUTPUT"
+          echo "Running suite: $SUITE"
+
+      # ── Checkout test repo + main app ───────────────────────────────
+      - name: Checkout tests
+        uses: actions/checkout@v4
+
+      - name: Checkout app
+        uses: actions/checkout@v4
+        with:
+          repository: appuuprety/victimsadvocate
+          path: app
+
+      # ── Tooling ─────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install Python deps
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      # ── Build & serve the app (skip for pure-API runs) ──────────────
+      - name: Build app
+        if: steps.pick.outputs.suite != 'api'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        working-directory: app
+        run: |
+          printf "VITE_SUPABASE_URL=%s\nVITE_SUPABASE_ANON_KEY=%s\n" \
+            "$VITE_SUPABASE_URL" "$VITE_SUPABASE_ANON_KEY" > .env
+          npm ci
+          npm run build
+
+      - name: Start preview server
+        if: steps.pick.outputs.suite != 'api'
+        working-directory: app
+        run: |
+          nohup npx vite preview --port 5173 --host 0.0.0.0 > ../vite.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:5173 >/dev/null && exit 0
+            sleep 1
+          done
+          echo "App did not start"; cat ../vite.log; exit 1
+
+      # ── Run tests ───────────────────────────────────────────────────
+      - name: Run pytest (${{ steps.pick.outputs.suite }})
+        env:
+          BASE_URL: http://localhost:5173
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          pytest -m "${{ steps.pick.outputs.suite }}" \
+            --junitxml=test-results/junit.xml \
+            --tracing=retain-on-failure \
+            --output=test-results
+
+      # ── Always-on artifacts ─────────────────────────────────────────
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ steps.pick.outputs.suite }}
+          path: |
+            test-results/
+            vite.log
+          if-no-files-found: ignore
+
+      - name: Publish JUnit report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: pytest (${{ steps.pick.outputs.suite }})
+          path: test-results/junit.xml
+          reporter: java-junit
+          fail-on-error: false

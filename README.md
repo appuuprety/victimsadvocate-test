@@ -85,6 +85,28 @@ pytest --headed --slowmo 500     # slow-motion debugging
 └── .env.test.example
 ```
 
+## Continuous Integration (GitHub Actions)
+
+`.github/workflows/tests.yml` runs the suite automatically:
+
+| Trigger | Suite |
+| --- | --- |
+| Push to `main` or PR | `smoke` |
+| Daily 06:00 UTC | `integration` |
+| Sunday 07:00 UTC | `regression` (full) |
+| Manual (Actions tab → Run workflow) | choose: smoke / integration / regression / api |
+
+**Required GitHub secrets** (Settings → Secrets and variables → Actions):
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+
+The workflow checks out the main app, builds it, serves the production build,
+and runs the chosen pytest marker. JUnit results + Playwright traces are
+uploaded as artifacts on every run.
+
 ## Continuous Integration (Jenkins)
 
 A `Jenkinsfile` is included that:

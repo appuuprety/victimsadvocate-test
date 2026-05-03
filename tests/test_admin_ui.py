@@ -12,12 +12,15 @@ def _unique_title(prefix="E2E Test Banner"):
 @pytest.mark.ui
 @pytest.mark.admin
 @pytest.mark.smoke
+@pytest.mark.regression
 def test_admin_login_lands_on_dashboard(admin_page):
     expect(admin_page.get_by_text("CVR Admin Portal")).to_be_visible()
 
 
 @pytest.mark.ui
 @pytest.mark.admin
+@pytest.mark.integration
+@pytest.mark.regression
 def test_add_brochure_appears_in_list(admin_page):
     """Add a new banner via the admin form, confirm it shows up."""
     ap = AdminPage(admin_page)
@@ -41,6 +44,8 @@ def test_add_brochure_appears_in_list(admin_page):
 
 @pytest.mark.ui
 @pytest.mark.admin
+@pytest.mark.integration
+@pytest.mark.regression
 def test_add_then_remove_brochure(admin_page):
     """Full lifecycle: add a banner, then remove it."""
     ap = AdminPage(admin_page)
@@ -68,6 +73,7 @@ def test_add_then_remove_brochure(admin_page):
 
 @pytest.mark.ui
 @pytest.mark.admin
+@pytest.mark.regression
 def test_admin_form_requires_title(admin_page):
     """Submitting the brochure form with no title should show an error."""
     ap = AdminPage(admin_page)
