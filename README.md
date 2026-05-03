@@ -85,6 +85,38 @@ pytest --headed --slowmo 500     # slow-motion debugging
 └── .env.test.example
 ```
 
+## Continuous Integration (Jenkins)
+
+A `Jenkinsfile` is included that:
+
+1. Checks out this test repo + the main app repo
+2. Builds the app with secrets injected from Jenkins credentials
+3. Serves the production build on `localhost:5173`
+4. Runs the full pytest suite, archives JUnit XML and Playwright traces
+
+**Setup**
+
+1. Install on the Jenkins agent: Python 3.11+, Node 20+, git, `curl`.
+2. Add four "Secret text" credentials in Jenkins:
+   - `va-supabase-url`
+   - `va-supabase-anon-key`
+   - `va-admin-email`
+   - `va-admin-password`
+3. Create a Multibranch Pipeline pointing at this repo. Jenkins will pick up
+   `Jenkinsfile` automatically and run on every branch push.
+
+**Local pre-push hook (optional)**
+
+Block pushes when smoke tests fail:
+
+```bash
+cp scripts/pre-push.sh .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+```
+
+The hook runs `pytest -m smoke` if the dev server is up, falling back to API
+smoke tests otherwise. Bypass with `git push --no-verify` in emergencies.
+
 ## Notes
 
 - The admin route is `/admin` (path-based, see `src/lib/helpers.js` in the app).
